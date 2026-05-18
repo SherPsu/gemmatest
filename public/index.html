@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Manager Pro</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="2" width="24" height="28" rx="2" fill="currentColor" opacity="0.1"/>
+            <path d="M8 8H24M8 14H24M8 20H18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <span>PDF Manager</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-section="upload">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M10 2V14M10 14L5 9M10 14L15 9M2 16H18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Upload</span>
+        </a>
+        <a href="#" class="nav-item" data-section="search">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M13 13L18 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>Search</span>
+        </a>
+        <a href="#" class="nav-item" data-section="documents">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="2" width="14" height="16" rx="1" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M7 6H13M7 10H13M7 14H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span>Documents</span>
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="app-header">
+        <h1 class="page-title">PDF Manager </h1>
+        <p class="page-subtitle">Manage and search your PDF documents efficiently</p>
+      </header>
+
+      <!-- Content Sections -->
+      <div class="content-wrapper">
+        <!-- Upload Section -->
+        <section id="upload-section" class="content-section active">
+          <div class="card">
+            <h2 class="card-title">Upload PDF</h2>
+            <p class="card-description">Add new PDF files to your library</p>
+            
+            <div class="upload-area">
+              <input type="file" id="pdfInput" accept=".pdf" class="file-input" />
+              <label for="pdfInput" class="upload-label">
+                <div class="upload-icon">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 8V32M24 32L16 24M24 32L32 24M8 40H40" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <div class="upload-text">
+                  <p class="upload-title">Drop your PDF here</p>
+                  <p class="upload-subtitle">or click to browse</p>
+                </div>
+              </label>
+              <button id="uploadBtn" class="btn btn-primary btn-lg">Upload PDF</button>
+            </div>
+            <div id="uploadStatus" class="upload-status"></div>
+          </div>
+        </section>
+
+        <!-- Search Section -->
+        <section id="search-section" class="content-section">
+          <div class="card">
+            <h2 class="card-title">Search Documents</h2>
+            <p class="card-description">Find PDFs by filename or content</p>
+            
+            <div class="search-mode-toggle">
+              <label class="toggle-label">
+                <input type="checkbox" id="aiSearchToggle" class="toggle-input" />
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">Use AI Search</span>
+              </label>
+              <p class="toggle-description">AI Search analyzes document meaning for smarter results</p>
+            </div>
+            
+            <div class="search-container">
+              <div class="search-box">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5"/>
+                  <path d="M13 13L18 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                <input 
+                  type="text" 
+                  id="searchInput" 
+                  placeholder="Search by filename or keywords..."
+                  class="search-input"
+                />
+                <button id="searchBtn" class="btn btn-secondary">Search</button>
+              </div>
+            </div>
+            <div id="searchResults" class="search-results"></div>
+          </div>
+        </section>
+
+        <!-- Documents Section -->
+        <section id="documents-section" class="content-section">
+          <div class="card">
+            <h2 class="card-title">Your Documents</h2>
+            <p class="card-description">Manage all your uploaded PDFs</p>
+            <div id="pdfsList" class="documents-list"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
