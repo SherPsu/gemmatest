@@ -200,7 +200,8 @@ function displaySearchResults(data) {
     if (data.aiPowered) {
       // AI Search result
       const scoreClass = result.relevanceScore >= 8 ? 'relevance-very-high' : result.relevanceScore >= 6 ? 'relevance-high' : 'relevance-medium';
-      relevanceHTML = `<span class="relevance-score ${scoreClass}">${result.relevanceLevel} (${result.relevanceScore}/10)</span><span class="ai-indicator">🤖 AI Powered</span>`;
+      const scannedBadge = result.isScanned ? '<span class="scanned-badge" title="This is a scanned document">📸 Scanned</span>' : '';
+      relevanceHTML = `<span class="relevance-score ${scoreClass}">${result.relevanceLevel} (${result.relevanceScore}/10)</span><span class="ai-indicator">🤖 AI Powered</span>${scannedBadge}`;
     } else {
       // Traditional Search result
       if (result.filenameMatches) {

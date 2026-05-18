@@ -599,6 +599,18 @@ body {
   margin-left: 8px;
 }
 
+.scanned-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #dbeafe;
+  color: #1e40af;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
+  border: 1px solid #bfdbfe;
+}
+
 .result-previews {
   background: var(--bg-primary);
   border-left: 3px solid var(--primary);

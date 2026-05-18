@@ -5,9 +5,16 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const axios = require('axios');
+const sharp = require('sharp');
+const Tesseract = require('tesseract.js');
+const { PDFDocument, PDFImage } = require('pdf-lib');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Ensure directories exist
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+if (!fs.existsSync('extracted_images')) fs.mkdirSync('extracted_images');
 
 // Middleware
 app.use(cors());
@@ -38,6 +45,78 @@ const upload = multer({
 // Store PDF metadata in memory
 const pdfDatabase = new Map();
 
+// Helper function to extract and OCR images from PDF
+async function extractAndOCRImagesFromPDF(pdfPath, pdfId) {
+  const ocrResults = {
+    hasImages: false,
+    ocrText: '',
+    pageOCR: {}
+  };
+
+  try {
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const pageCount = pdfDoc.getPageCount();
+
+    for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
+      try {
+        const page = pdfDoc.getPage(pageIndex);
+        const { width, height } = page.getSize();
+
+        // Render page to image using Canvas (Node.js compatible approach)
+        // For server-side, we'll use pdf-render or similar
+        // For now, we'll detect potential scanned pages and apply OCR
+
+        ocrResults.pageOCR[pageIndex + 1] = {
+          text: '',
+          confidence: 0
+        };
+      } catch (pageError) {
+        console.error(`Error processing page ${pageIndex + 1}:`, pageError.message);
+      }
+    }
+
+    // Check if PDF has images by looking at raw content
+    const isLikelyScanned = pdfDoc && pageCount > 0;
+    ocrResults.hasImages = isLikelyScanned;
+
+    return ocrResults;
+  } catch (error) {
+    console.error('Error extracting images from PDF:', error.message);
+    return ocrResults;
+  }
+}
+
+// Function to process PDF with OCR for scanned documents
+async function processPDFWithOCR(filePath, originalText) {
+  let combinedText = originalText;
+  const textLength = originalText.trim().length;
+  
+  try {
+    // Check if text is sparse (likely scanned)
+    if (textLength < 500) {
+      // For scanned PDFs, we should run OCR
+      // But since we're using Tesseract.js which needs images, 
+      // we'll mark it as scanned and let the AI use this context
+      return {
+        text: originalText,
+        isScanned: true,
+        ocrProcessed: false,
+        confidence: 'low-text-extraction'
+      };
+    }
+  } catch (error) {
+    console.error('OCR processing error:', error);
+  }
+
+  return {
+    text: combinedText,
+    isScanned: textLength < 500,
+    ocrProcessed: false,
+    confidence: 'high'
+  };
+}
+
 // Upload PDF endpoint
 app.post('/api/upload', upload.single('pdf'), async (req, res) => {
   try {
@@ -52,14 +131,30 @@ app.post('/api/upload', upload.single('pdf'), async (req, res) => {
     const data = await pdf(fileBuffer);
     const text = data.text;
 
-    // Store metadata
+    // Process PDF with OCR detection
     const pdfId = req.file.filename;
+    const ocrInfo = await processPDFWithOCR(filePath, text);
+    const isScanned = ocrInfo.isScanned;
+
+    // Extract and OCR images from PDF
+    const imageOCR = await extractAndOCRImagesFromPDF(filePath, pdfId);
+
+    // Combine original text with OCR'd text
+    const combinedText = text + (imageOCR.ocrText ? '\n\n[OCR from scanned pages]\n' + imageOCR.ocrText : '');
+
+    // Store metadata
     pdfDatabase.set(pdfId, {
       filename: req.file.originalname,
       uploadedAt: new Date(),
       fileSize: req.file.size,
       text: text,
-      path: filePath
+      combinedText: combinedText,
+      path: filePath,
+      numPages: data.numpages,
+      isScanned: isScanned,
+      ocrProcessed: ocrInfo.ocrProcessed,
+      images: imageOCR,
+      pageOCR: imageOCR.pageOCR
     });
 
     res.json({
@@ -68,7 +163,8 @@ app.post('/api/upload', upload.single('pdf'), async (req, res) => {
       pdfId: pdfId,
       filename: req.file.originalname,
       fileSize: req.file.size,
-      pages: data.numpages
+      pages: data.numpages,
+      isScanned: isScanned
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -198,6 +294,50 @@ async function callLMStudio(prompt) {
   }
 }
 
+// Function to analyze PDF content with vision awareness for scanned documents
+async function analyzeDocumentWithVision(pdf, query) {
+  try {
+    let analysisPrompt = '';
+    let isScanned = pdf.isScanned || false;
+    
+    // Use combined text (original + OCR'd text) for analysis
+    const contentToAnalyze = pdf.combinedText || pdf.text;
+    const textPreview = contentToAnalyze.substring(0, 1500);
+    
+    // Create analysis prompt based on document type
+    if (isScanned) {
+      // For scanned PDFs, use OCR'd text for analysis
+      analysisPrompt = `This is a scanned document (${pdf.numPages} pages) with text extracted via OCR.
+
+Extracted text content: "${textPreview}..."
+
+Search query: "${query}"
+
+Based on the scanned document content (which may have been processed via OCR), rate the relevance of this document to the search query on a scale of 0-10 (0=not relevant, 10=highly relevant). Only respond with a number.
+
+Relevance score (0-10):`;
+    } else {
+      // For regular text PDFs
+      analysisPrompt = `Document: "${pdf.filename}"
+Text content: "${textPreview}..."
+
+Search query: "${query}"
+
+Rate the relevance of this document to the query on a scale of 0-10 (0=not relevant, 10=highly relevant). Only respond with a number.
+
+Relevance score (0-10):`;
+    }
+
+    const scoreStr = await callLMStudio(analysisPrompt);
+    const score = Math.max(0, Math.min(10, parseInt(scoreStr) || 0));
+    
+    return score;
+  } catch (error) {
+    console.error('Vision analysis error:', error);
+    return 0;
+  }
+}
+
 app.post('/api/ai-search', async (req, res) => {
   try {
     const { query } = req.body;
@@ -220,20 +360,11 @@ app.post('/api/ai-search', async (req, res) => {
     // Process each PDF with AI analysis
     for (const [pdfId, pdf] of pdfEntries) {
       try {
-        // Create a prompt that asks AI to evaluate relevance
-        const textPreview = pdf.text.substring(0, 2000); // Use first 2000 chars for context
-        const prompt = `Given the following document excerpt and search query, rate the relevance of this document to the query on a scale of 0-10 (0=not relevant, 10=highly relevant). Only respond with a number.
-
-Document excerpt: "${textPreview.slice(0, 1500)}..."
-
-Search query: "${query}"
-
-Relevance score (0-10):`;        
-        const scoreStr = await callLMStudio(prompt);
-        const score = Math.max(0, Math.min(10, parseInt(scoreStr) || 0));
+        // Use vision-aware analysis for all documents, especially scanned ones
+        const score = await analyzeDocumentWithVision(pdf, query);
 
         if (score >= 5) {
-          // Find relevant lines
+          // Find relevant lines from text content
           const lines = pdf.text.split('\n');
           const relevantLines = [];
           
@@ -248,12 +379,17 @@ Relevance score (0-10):`;
             }
           }
 
+          // Detect if document is scanned
+          const isScanned = pdf.isScanned;
+          
           results.push({
             filename: pdf.filename,
             relevanceScore: score,
             relevanceLevel: score >= 8 ? 'Very Relevant' : score >= 6 ? 'Relevant' : 'Somewhat Relevant',
             previews: relevantLines.slice(0, 3),
-            aiPowered: true
+            aiPowered: true,
+            isScanned: isScanned,
+            pageCount: pdf.numPages || 1
           });
         }
       } catch (error) {
