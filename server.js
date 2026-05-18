@@ -4,6 +4,7 @@ const pdf = require('pdf-parse');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -155,32 +156,44 @@ app.delete('/api/pdfs/:filename', (req, res) => {
   }
 });
 
+// Get document content endpoint
+app.get('/api/document/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const pdf = pdfDatabase.get(filename);
+
+    if (!pdf) {
+      return res.status(404).json({ error: 'PDF not found' });
+    }
+
+    res.json({
+      filename: pdf.filename,
+      text: pdf.text,
+      fileSize: pdf.fileSize,
+      uploadedAt: pdf.uploadedAt
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // AI Search using LM Studio
 const AI_API_URL = process.env.AI_API_URL || 'http://127.0.0.1:1234';
 const AI_MODEL = process.env.AI_MODEL || 'default';
 
 async function callLMStudio(prompt) {
   try {
-    const response = await fetch(`${AI_API_URL}/v1/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        prompt: prompt,
-        max_tokens: 200,
-        temperature: 0.3,
-        top_p: 0.9,
-      })
+    const response = await axios.post(`${AI_API_URL}/v1/completions`, {
+      model: AI_MODEL,
+      prompt: prompt,
+      max_tokens: 200,
+      temperature: 0.3,
+      top_p: 0.9,
     });
     
-    if (!response.ok) {
-      throw new Error(`LM Studio error: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    return data.choices[0].text.trim();
+    return response.data.choices[0].text.trim();
   } catch (error) {
-    console.error('LM Studio API error:', error);
+    console.error('LM Studio API error:', error.message);
     throw error;
   }
 }

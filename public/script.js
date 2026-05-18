@@ -280,9 +280,8 @@ async function loadPDFsList() {
           </div>
         </div>
         <div class="document-actions">
-          <button class="btn btn-delete" onclick="deletePDF('${escapeHtml(pdf.filename).replace(/'/g, "\\'")}")">
-            Delete
-          </button>
+          <button class="btn btn-secondary" onclick="viewDocument('${escapeHtml(pdf.filename).replace(/'/g, "\\'")}')" style="margin-right: 8px;">View</button>
+          <button class="btn btn-delete" onclick="deletePDF('${escapeHtml(pdf.filename).replace(/'/g, "\\'")}')" >Delete</button>
         </div>
       `;
 
@@ -290,6 +289,64 @@ async function loadPDFsList() {
     });
   } catch (error) {
     console.error('Error loading PDFs:', error);
+  }
+}
+
+// View Document
+async function viewDocument(filename) {
+  try {
+    const response = await fetch(`/api/document/${encodeURIComponent(filename)}`);
+    
+    if (!response.ok) {
+      alert('Failed to load document');
+      return;
+    }
+
+    const data = await response.json();
+    const modal = document.getElementById('viewModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const documentViewer = document.getElementById('documentViewer');
+
+    modalTitle.textContent = data.filename;
+    
+    // Split text into pages (every 3000 chars for better readability)
+    const pageSize = 3000;
+    const pages = [];
+    for (let i = 0; i < data.text.length; i += pageSize) {
+      pages.push(data.text.substring(i, i + pageSize));
+    }
+    
+    let html = `<div class="document-viewer-header">
+      <p class="document-info">Total: ${pages.length} page(s) | Size: ${(data.fileSize / 1024).toFixed(2)} KB</p>
+    </div>`;
+    
+    pages.forEach((pageText, index) => {
+      html += `
+        <div class="document-page">
+          <div class="page-number">Page ${index + 1} of ${pages.length}</div>
+          <div class="page-content">${escapeHtml(pageText)}</div>
+        </div>
+      `;
+    });
+    
+    documentViewer.innerHTML = html;
+    modal.style.display = 'flex';
+  } catch (error) {
+    console.error('Error viewing document:', error);
+    alert('Error loading document: ' + error.message);
+  }
+}
+
+function closeModal() {
+  const modal = document.getElementById('viewModal');
+  modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('viewModal');
+  if (event.target == modal) {
+    modal.style.display = 'none';
   }
 }
 
