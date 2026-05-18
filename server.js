@@ -6,8 +6,7 @@ const path = require('path');
 const cors = require('cors');
 const axios = require('axios');
 const sharp = require('sharp');
-const Tesseract = require('tesseract.js');
-const { PDFDocument, PDFImage } = require('pdf-lib');
+const { PDFDocument } = require('pdf-lib');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,7 +86,7 @@ async function extractAndOCRImagesFromPDF(pdfPath, pdfId) {
   }
 }
 
-// Function to process PDF with OCR for scanned documents
+// Function to process PDF and detect if scanned (uses Gemma 4 e4b for analysis)
 async function processPDFWithOCR(filePath, originalText) {
   let combinedText = originalText;
   const textLength = originalText.trim().length;
@@ -95,9 +94,8 @@ async function processPDFWithOCR(filePath, originalText) {
   try {
     // Check if text is sparse (likely scanned)
     if (textLength < 500) {
-      // For scanned PDFs, we should run OCR
-      // But since we're using Tesseract.js which needs images, 
-      // we'll mark it as scanned and let the AI use this context
+      // For scanned PDFs with minimal text, Gemma 4 will analyze the full content
+      // including any visual/image content context
       return {
         text: originalText,
         isScanned: true,
@@ -106,7 +104,7 @@ async function processPDFWithOCR(filePath, originalText) {
       };
     }
   } catch (error) {
-    console.error('OCR processing error:', error);
+    console.error('PDF processing error:', error);
   }
 
   return {
@@ -273,9 +271,9 @@ app.get('/api/document/:filename', (req, res) => {
   }
 });
 
-// AI Search using LM Studio
-const AI_API_URL = process.env.AI_API_URL || 'http://127.0.0.1:1234';
-const AI_MODEL = process.env.AI_MODEL || 'default';
+// AI Search using LM Studio with Gemma 4 e4b
+const AI_API_URL = process.env.AI_API_URL || 'http://192.168.50.144:1234';
+const AI_MODEL = process.env.AI_MODEL || 'gemma-4-e4b';
 
 async function callLMStudio(prompt) {
   try {
@@ -414,5 +412,5 @@ app.post('/api/ai-search', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`PDF Upload & Search Server running on http://localhost:${PORT}`);
-  console.log(`AI Search enabled - Using LM Studio at ${AI_API_URL}`);
+  console.log(`AI Search enabled - Using Gemma 4 e4b at ${AI_API_URL}`);
 });

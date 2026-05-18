@@ -16,8 +16,7 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.7.284",
-    "sharp": "^0.34.5",
-    "tesseract.js": "^7.0.0"
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
